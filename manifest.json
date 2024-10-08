@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "Anki-Obsidian",
+	"name": "Anki-Obsidian",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"description": "Creación de notas a partir de una nota en obsidian",
+	"author": "Miguel Garcia",
+	"authorUrl": "https://github.com/GMigue/Anki-Obsidian.git",
+	"fundingUrl": "https://github.com/GMigue/Anki-Obsidian.git",
+	"isDesktopOnly": true
 }
