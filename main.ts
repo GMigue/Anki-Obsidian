@@ -8,13 +8,15 @@ interface AnkiObsidianSetting {
 	basico: string;  //Notas basicas
 	inverso: string;  //Notas basicas
 	deckDefault: string;
+	updateStatus: boolean
 }
 
 const DEFAULT_SETTINGS: AnkiObsidianSetting = {
 	ankiConnectUrl: 'http://localhost:8765', //URL Aki-Connect
 	basico: 'CAnki',
 	inverso: 'CIAnki',
-	deckDefault: 'Predeterminado'
+	deckDefault: 'Predeterminado',
+	updateStatus: true
 }
 
 export default class AnkiObsidian extends Plugin {
@@ -25,6 +27,9 @@ export default class AnkiObsidian extends Plugin {
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('wallet-cards', 'Enviar', async(evt: MouseEvent) => {
+			// Mostrar la ventana emergente de "Cargando..." con el spinner
+            const loadingModal = new LoadingModal(this.app);
+            loadingModal.open();
 			// Obtiene View
 		   const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		   if (!activeView) {
@@ -35,22 +40,7 @@ export default class AnkiObsidian extends Plugin {
 
 		   const postCards = await this.searchCards(activeView);
 
-		   new Notice(`Se crearon ${postCards.add} tarjetas`);
-		   new Notice(`Se actualizaron ${postCards.update} tarjetas`);
-		   new Notice(`Se eliminaron ${postCards.delete} tarjetas`);
-
-		});
-
-		const ribbonIconEl2 = this.addRibbonIcon('info', 'Enviar2', async(evt: MouseEvent) => {
-			// Obtiene View
-		   const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-		   if (!activeView) {
-			   console.error('No hay un editor markdown activo.');
-			   new Notice('No hay una pagina abierta');
-			   return;
-		   }
-
-		   const postCards = await this.prueba(activeView);
+		   loadingModal.close();
 
 		   new Notice(`Se crearon ${postCards.add} tarjetas`);
 		   new Notice(`Se actualizaron ${postCards.update} tarjetas`);
@@ -60,9 +50,6 @@ export default class AnkiObsidian extends Plugin {
 		
 		// Perform additional things with the ribbon
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		ribbonIconEl2.addClass('my-plugin-ribbon-class');
-
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
@@ -261,8 +248,9 @@ export default class AnkiObsidian extends Plugin {
 	}
 	async updateDeck(anv:string, rev:string, origen:string, nivel:string, leccion:string, model:string, tags:Array<string>, id:number){
 		try {
-			let reverso = await this.renderMarkdownToHtml(rev);
-			let anverso = await this.renderMarkdownToHtml(anv);
+			let upd = this.settings.updateStatus;
+			let reverso = upd ? await this.renderMarkdownToHtml(rev) : '';
+			let anverso = upd ? await this.renderMarkdownToHtml(anv) : '';
 			let bandUpdate = false;
 			const action = "notesInfo";
 			const params = {
@@ -279,18 +267,26 @@ export default class AnkiObsidian extends Plugin {
 				bandUpdate = true;
 			}
 			else{
-				if (result['result'][0]['modelName'] == 'Ingles oclusion') {
-					if (anverso !== fileds['Texto']['value'] || origen !== fileds['Origen']['value']
-						|| nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 
-					) {
-						bandUpdate = true;
-					}
+				if (upd) {
+					
+						if (origen !== fileds['Origen']['value'] || nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 ) {
+							bandUpdate = true;
+						}
 				}
-				else{
-					if (anverso !== fileds['Anverso']['value'] || reverso !== fileds['Reverso']['value'] || origen !== fileds['Origen']['value']
-						|| nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 
-					) {
-						bandUpdate = true;
+				else {
+					if (result['result'][0]['modelName'] == 'Ingles oclusion') {
+						if (anverso !== fileds['Texto']['value'] || origen !== fileds['Origen']['value']
+							|| nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 
+						) {
+							bandUpdate = true;
+						}
+					}
+					else{
+						if (anverso !== fileds['Anverso']['value'] || reverso !== fileds['Reverso']['value'] || origen !== fileds['Origen']['value']
+							|| nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 
+						) {
+							bandUpdate = true;
+						}
 					}
 				}
 			}
@@ -298,26 +294,35 @@ export default class AnkiObsidian extends Plugin {
 			if (bandUpdate) {
 				const action = "updateNoteModel";
 				let fieldsTemp = {};
-				switch (model) {
-					case 'Ingles oclusion':
-						fieldsTemp = {
-							Texto: anverso,
-							Origen: origen,
-							Nivel: nivel,
-							Leccion: leccion
-						}
-						break;
-				
-					default:
-						fieldsTemp = {
-							Anverso: anverso,
-							Reverso: reverso,
-							Origen: origen,
-							Nivel: nivel,
-							Leccion: leccion
-						}
-						break;
+				if (upd) {
+					fieldsTemp = {
+						Origen: origen,
+						Nivel: nivel,
+						Leccion: leccion
+					};
+				} else {
+					switch (model) {
+						case 'Ingles oclusion':
+							fieldsTemp = {
+								Texto: anverso,
+								Origen: origen,
+								Nivel: nivel,
+								Leccion: leccion
+							};
+							break;
+					
+						default:
+							fieldsTemp = {
+								Anverso: anverso,
+								Reverso: reverso,
+								Origen: origen,
+								Nivel: nivel,
+								Leccion: leccion
+							};
+							break;
+					}
 				}
+				
 				const params = {
 						note: {
 							id: id,
@@ -701,9 +706,37 @@ export default class AnkiObsidian extends Plugin {
 		return cleanedText;
 	}
 	
+	async runLongTask() {
+        return new Promise<void>((resolve) => {
+            // Simular una tarea larga con un timeout de 3 segundos
+            setTimeout(() => {
+                console.log('Tarea larga finalizada');
+                resolve();
+            }, 5000);
+        });
+    }
 
 }
 
+class LoadingModal extends Modal {
+    constructor(app: App) {
+        super(app);
+    }
+
+    onOpen() {
+        let { contentEl } = this;
+
+        contentEl.empty(); // Limpiar contenido
+
+        contentEl.createEl('h2', { text: 'Enviando tarjetas a Anki...' });
+        contentEl.createEl('p', { text: 'Por favor, espera a que las tarjetas sean enviadas a Anki.' });
+    }
+
+    onClose() {
+        let { contentEl } = this;
+        contentEl.empty();
+    }
+}
 
 class SettingTab extends PluginSettingTab {
     plugin: AnkiObsidian;
@@ -744,8 +777,19 @@ class SettingTab extends PluginSettingTab {
                     this.plugin.settings.deckDefault = value;
                     await this.plugin.saveSettings();
                 }));
+		
 
 		containerEl.createEl('h4', { text: 'Configuración de notas' });
+
+		new Setting(containerEl)
+            .setName('Habilitar actualización')
+            .setDesc('Habilitar la actualización del anverso y reverso de las tarjetas craedas.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.updateStatus)
+                .onChange(async (value) => {
+                    this.plugin.settings.updateStatus = value;
+                    await this.plugin.saveSettings();
+                }));
 
 		new Setting(containerEl)
             .setName('Tarjetas Basicas')
