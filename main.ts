@@ -263,7 +263,8 @@ export default class AnkiObsidian extends Plugin {
 			const fileds = result['result'][0]['fields'];
 			const tagsNote : Array<string> = result['result'][0]['tags'] || [];
 			const tagsWithoutHast = tags.map(str => str.replace(/#/g, ''));
-			const newTags =  tagsNote.filter(item => !tagsWithoutHast.includes(item));
+			const newTags =  tagsWithoutHast.filter(item => !tagsNote.includes(item));
+			const addtags = [...tagsWithoutHast, ...tagsNote];
 
 
 
@@ -347,7 +348,7 @@ export default class AnkiObsidian extends Plugin {
 							id: id,
 							modelName: model,
 							fields: fieldsTemp,
-							tags: tagsWithoutHast
+							tags: addtags
 						}
 					};
 		
