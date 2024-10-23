@@ -157,6 +157,7 @@ export default class AnkiObsidian extends Plugin {
 			let createDeck = '';
 			let reverso = await this.renderMarkdownToHtml(rev);
 			let anverso = await this.renderMarkdownToHtml(anv);
+			const tagsTemp = tags.map(str => str.replace(/#/g, ''));
 
 			//Verificar si el deck existe
 			if (!decksAnki.includes(deck)) {
@@ -197,7 +198,7 @@ export default class AnkiObsidian extends Plugin {
 						options: {
 							allowDuplicate: false
 						},
-						tags: tags
+						tags: tagsTemp
 					}
 				};
 
@@ -249,8 +250,8 @@ export default class AnkiObsidian extends Plugin {
 	async updateDeck(anv:string, rev:string, origen:string, nivel:string, leccion:string, model:string, tags:Array<string>, id:number){
 		try {
 			let upd = this.settings.updateStatus;
-			let reverso = upd ? await this.renderMarkdownToHtml(rev) : '';
-			let anverso = upd ? await this.renderMarkdownToHtml(anv) : '';
+			let reverso =  await this.renderMarkdownToHtml(rev);
+			let anverso =  await this.renderMarkdownToHtml(anv);
 			let bandUpdate = false;
 			const action = "notesInfo";
 			const params = {
@@ -261,13 +262,16 @@ export default class AnkiObsidian extends Plugin {
 			
 			const fileds = result['result'][0]['fields'];
 			const tagsNote : Array<string> = result['result'][0]['tags'] || [];
-			const newTags =  tagsNote.filter(item => !tags.includes(item));
+			const tagsWithoutHast = tags.map(str => str.replace(/#/g, ''));
+			const newTags =  tagsNote.filter(item => !tagsWithoutHast.includes(item));
+
+
 
 			if (model !== result['result'][0]['modelName']) {
 				bandUpdate = true;
 			}
 			else{
-				if (upd) {
+				if (!upd) {
 					
 						if (origen !== fileds['Origen']['value'] || nivel !== fileds['Nivel']['value'] || leccion !== fileds['Leccion']['value'] || newTags.length > 0 ) {
 							bandUpdate = true;
@@ -294,12 +298,27 @@ export default class AnkiObsidian extends Plugin {
 			if (bandUpdate) {
 				const action = "updateNoteModel";
 				let fieldsTemp = {};
-				if (upd) {
-					fieldsTemp = {
-						Origen: origen,
-						Nivel: nivel,
-						Leccion: leccion
-					};
+				if (!upd) {
+					switch (model) {
+						case 'Ingles oclusion':
+							fieldsTemp = {
+								Texto: fileds['Texto']['value'],
+								Origen: origen,
+								Nivel: nivel,
+								Leccion: leccion
+							};
+							break;
+					
+						default:
+							fieldsTemp = {
+								Anverso: fileds['Anverso']['value'],
+								Reverso: fileds['Reverso']['value'],
+								Origen: origen,
+								Nivel: nivel,
+								Leccion: leccion
+							};
+							break;
+					}
 				} else {
 					switch (model) {
 						case 'Ingles oclusion':
@@ -328,7 +347,7 @@ export default class AnkiObsidian extends Plugin {
 							id: id,
 							modelName: model,
 							fields: fieldsTemp,
-							tags: newTags
+							tags: tagsWithoutHast
 						}
 					};
 		
